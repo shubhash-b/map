@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live OSM Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body style="margin:0; padding:0; overflow:hidden;">
+    <div id="map" style="width: 100vw; height: 100vh;"></div>
+
+    <script>
+        var map = L.map('map').setView([13.1315100, 77.7072200], 20); // Default position
+
+        // Load OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: ''
+        }).addTo(map);
+
+        var startMarker, endMarker, routeLine;
+
+        function updateMap(startLat, startLon, endLat, endLon) {
+            if (startMarker) map.removeLayer(startMarker);
+            if (endMarker) map.removeLayer(endMarker);
+            if (routeLine) map.removeLayer(routeLine);
+
+            // Set new start & end markers
+            startMarker = L.marker([startLat, startLon], {icon: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/128/3448/3448604.png', 
+                iconSize: [30, 30]
+            })}).addTo(map);
+
+            endMarker = L.marker([endLat, endLon], {icon: L.icon({
+                iconUrl: 'bus (2).png', 
+                iconSize: [30, 30]
+            })}).addTo(map);
+
+            // Fetch new route
+            var apiKey = "cc8ae60c-a69a-4438-8891-e49269325417"; // Replace with your GraphHopper API key
+            var url = `https://graphhopper.com/api/1/route?point=${startLat},${startLon}&point=${endLat},${endLon}&profile=car&key=${apiKey}&points_encoded=false`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    var routePoints = data.paths[0].points.coordinates;
+                    var latlngs = routePoints.map(p => [p[1], p[0]]); // Swap lat/lon for Leaflet
+
+                    routeLine = L.polyline(latlngs, {color: 'blue', weight: 5}).addTo(map);
+                    map.fitBounds(L.polyline(latlngs).getBounds());
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Function to receive coordinates from Kodular
+        function receiveLocation(startLat, startLon, endLat, endLon) {
+            updateMap(parseFloat(startLat), parseFloat(startLon), parseFloat(endLat), parseFloat(endLon));
+        }
+    </script>
+</body>
+</html>
