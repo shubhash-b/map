@@ -10,7 +10,7 @@
     <div id="map" style="width: 100vw; height: 100vh;"></div>
 
     <script>
-        var map = L.map('map').setView([13.1315100, 77.7072200], 13); // Default position
+        var map = L.map('map').setView([13.1315100, 77.7072200], 15); // Default position
 
         // Load OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -31,7 +31,7 @@
             })}).addTo(map);
 
             endMarker = L.marker([endLat, endLon], {icon: L.icon({
-                iconUrl: 'bus (2).png', 
+                iconUrl: 'bus(2).png', 
                 iconSize: [30, 30]
             })}).addTo(map);
 
