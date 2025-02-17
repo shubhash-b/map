@@ -35,14 +35,6 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Define Custom Bus Stop Icon
-        var busStopIcon = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448839.png', // Change this URL to your own icon
-            iconSize: [30, 30], // Width, Height
-            iconAnchor: [15, 30], // Anchor point (center bottom)
-            popupAnchor: [0, -30] // Where the popup opens
-        });
-
         // Markers Layer
         var busStopsLayer;
 
@@ -68,9 +60,9 @@
                         var stopLon = stop.geometry.coordinates[0];
                         var stopName = stop.properties.name || "Bus Stop";
 
-                        // Add Custom Marker
-                        L.marker([stopLat, stopLon], { icon: busStopIcon }).addTo(busStopsLayer)
-                            .bindPopup(`<b>${stopName}</b>`);
+                        // Add Marker
+                        L.marker([stopLat, stopLon]).addTo(busStopsLayer)
+                            .bindPopup(stopName).openPopup();
                     });
 
                     // Update the label with the number of bus stops
