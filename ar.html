@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Bus Tracking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body style="margin:0; padding:0; overflow:hidden;">
+    <div id="map" style="width: 100vw; height: 100vh;"></div>
+
+    <script>
+        var map = L.map('map').setView([13.1315100, 77.7072200], 14); // Default position
+
+        // Load OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var startMarker, endMarker, routeLine, busStopsLayer;
+        var lastStartLat = null, lastStartLon = null;
+
+        // Custom Icons
+        var startIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/128/3448/3448604.png',
+            iconSize: [25, 25]
+        });
+
+        var busIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/128/3076/3076744.png',
+            iconSize: [35, 35]
+        });
+
+        var busStopIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/128/3448/3448839.png',
+            iconSize: [20, 20]
+        });
+
+        function updateMap(startLat, startLon, endLat, endLon) {
+            // Only update if the start location has changed
+            if (startLat === lastStartLat && startLon === lastStartLon) {
+                return; // No change, don't update
+            }
+            lastStartLat = startLat;
+            lastStartLon = startLon;
+
+            if (startMarker) map.removeLayer(startMarker);
+            if (endMarker) map.removeLayer(endMarker);
+            if (routeLine) map.removeLayer(routeLine);
+            if (busStopsLayer) map.removeLayer(busStopsLayer);
+
+            // Set new start & end markers
+            startMarker = L.marker([startLat, startLon], { icon: startIcon }).addTo(map);
+            endMarker = L.marker([startLat, startLon], { icon: busIcon }).addTo(map);
+
+            // Fetch new route from GraphHopper
+            var graphhopperKey = "cc8ae60c-a69a-4438-8891-e49269325417";
+            var routeUrl = `https://graphhopper.com/api/1/route?point=${startLat},${startLon}&point=${endLat},${endLon}&profile=car&key=${graphhopperKey}&points_encoded=false`;
+
+            fetch(routeUrl)
+                .then(response => response.json())
+                .then(data => {
+                    var routePoints = data.paths[0].points.coordinates;
+                    var latlngs = routePoints.map(p => [p[1], p[0]]);
+
+                    routeLine = L.polyline(latlngs, { color: '#007AFF', weight: 4, opacity: 0.8 }).addTo(map);
+                    map.fitBounds(L.polyline(latlngs).getBounds());
+
+                    // Animate the endMarker (bus) along the route
+                    animateBus(latlngs);
+                })
+                .catch(error => console.error('Error fetching route:', error));
+
+            // Fetch nearby bus stops
+            getNearbyBusStops(startLat, startLon);
+        }
+
+        function animateBus(routePoints) {
+            let i = 0;
+            function moveBus() {
+                if (i < routePoints.length) {
+                    endMarker.setLatLng(routePoints[i]); // Move the marker smoothly
+                    i++;
+                    setTimeout(moveBus, 500); // Adjust for smoother movement
+                }
+            }
+            moveBus();
+        }
+
+        function getNearbyBusStops(lat, lon) {
+            if (busStopsLayer) map.removeLayer(busStopsLayer);
+
+            // OpenRouteService API Key (Replace with your own)
+            var orsKey = "5b3ce3597851110001cf6248583eca790e014543b4194429594c5949";
+
+            // Find nearby bus stops (POI category 431) within 1000m radius
+            var url = `https://api.openrouteservice.org/v2/pois?api_key=${orsKey}&request=pois&geometry={"bbox":[${lon-0.01},${lat-0.01},${lon+0.01},${lat+0.01}],"geojson":{"type":"Point","coordinates":[${lon},${lat}]}}&filters={"category_ids":[431],"buffer":1000}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    var stops = data.features;
+                    busStopsLayer = L.layerGroup().addTo(map);
+
+                    stops.forEach(stop => {
+                        var stopLat = stop.geometry.coordinates[1];
+                        var stopLon = stop.geometry.coordinates[0];
+                        var stopName = stop.properties.name || "Bus Stop";
+
+                        // Add Custom Marker for Bus Stops
+                        L.marker([stopLat, stopLon], { icon: busStopIcon }).addTo(busStopsLayer)
+                            .bindPopup(`<b>${stopName}</b>`);
+                    });
+                })
+                .catch(error => console.error("Error fetching bus stops:", error));
+        }
+
+        // Function to receive coordinates from Kodular
+        function receiveLocation(startLat, startLon, endLat, endLon) {
+            updateMap(parseFloat(startLat), parseFloat(startLon), parseFloat(endLat), parseFloat(endLon));
+        }
+    </script>
+</body>
+</html>
